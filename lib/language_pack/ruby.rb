@@ -434,6 +434,7 @@ ERROR
         run("#{env_vars} bundle config build.taglib-ruby '--with-opt-dir=/app/vendor/taglib-1.8'")
 
         puts "Running: #{bundle_command}"
+        pipe("cat #{pwd}/.bundle/config")
         bundler_output << pipe("#{env_vars} #{bundle_command} --no-clean 2>&1")
       end
 
