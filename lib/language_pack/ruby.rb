@@ -327,24 +327,6 @@ ERROR
     end
   end
 
-  def custom_binaries
-    ['taglib-1.8']
-  end
-
-  def install_custom_binaries
-    puts("Installing custom binaries: #{custom_binaries.join(', ')}")
-    custom_binaries.each do |b|
-      bin_dir = "/app/vendor/#{b}"
-      FileUtils.mkdir_p bin_dir
-      Dir.chdir(bin_dir) do |dir|
-        run("curl #{CUSTOM_VENDOR_URL}/#{b}.tar.gz -s -o - | tar xzf -")
-      end
-    end
-    # tweak the bundle config
-    puts("Altering bundle config for taglib")
-    run("bundle config build.taglib-ruby '--with-opt-dir=/app/vendor/taglib-1.8'")
-  end
-
   # default set of binaries to install
   # @return [Array] resulting list
   def binaries
@@ -430,9 +412,6 @@ ERROR
         libyaml_dir = "#{tmpdir}/#{LIBYAML_PATH}"
         install_libyaml(libyaml_dir)
 
-        # install custom binaries
-        install_custom_binaries
-
         # need to setup compile environment for the psych gem
         yaml_include   = File.expand_path("#{libyaml_dir}/include")
         yaml_lib       = File.expand_path("#{libyaml_dir}/lib")
@@ -442,10 +421,20 @@ ERROR
         # codon since it uses bundler.
         env_vars       = "env BUNDLE_GEMFILE=#{pwd}/Gemfile BUNDLE_CONFIG=#{pwd}/.bundle/config CPATH=#{yaml_include}:$CPATH CPPATH=#{yaml_include}:$CPPATH LIBRARY_PATH=#{yaml_lib}:$LIBRARY_PATH RUBYOPT=\"#{syck_hack}\""
         env_vars      += " BUNDLER_LIB_PATH=#{bundler_path}" if ruby_version && ruby_version.match(/^ruby-1\.8\.7/)
-        puts "Running: #{bundle_command}"
-        pipe("cat #{pwd}/.bundle/config")
-        bundler_output << pipe("#{env_vars} #{bundle_command} --no-clean 2>&1")
 
+        # install taglib
+        puts("Installing taglib")
+        taglib_dir = "/app/vendor/taglib-1.8"
+        FileUtils.mkdir_p taglib_dir
+        Dir.chdir(taglib_dir) do |dir|
+          run("curl #{CUSTOM_VENDOR_URL}/taglib-1.8.tar.gz -s -o - | tar xzf -")
+        end
+        # tweak the bundle config
+        puts("Altering bundle config for taglib")
+        run("#{env_vars} bundle config build.taglib-ruby '--with-opt-dir=/app/vendor/taglib-1.8'")
+
+        puts "Running: #{bundle_command}"
+        bundler_output << pipe("#{env_vars} #{bundle_command} --no-clean 2>&1")
       end
 
       if $?.success?
