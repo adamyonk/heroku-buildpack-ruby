@@ -18,6 +18,7 @@ class LanguagePack::Ruby < LanguagePack::Base
   NODE_JS_BINARY_PATH = "node-#{NODE_VERSION}"
   JVM_BASE_URL        = "http://heroku-jdk.s3.amazonaws.com"
   JVM_VERSION         = "openjdk7-latest"
+  CUSTOM_VENDOR_URL   = "https://s3.amazonaws.com/adamyonk-heroku-binaries"
 
   # detects if this is a valid Ruby app
   # @return [Boolean] true if it's a Ruby app
@@ -326,6 +327,24 @@ ERROR
     end
   end
 
+  def custom_binaries
+    ['taglib-1.8']
+  end
+
+  def install_custom_binaries
+    puts("Installing custom binaries: #{custom_binaries.join(', ')}")
+    custom_binaries.each do |b|
+      bin_dir = "/app/vendor/#{b}"
+      FileUtils.mkdir_p bin_dir
+      Dir.chdir(bin_dir) do |dir|
+        run("curl #{CUSTOM_VENDOR_URL}/#{b}.tar.gz -s -o - | tar xzf -")
+      end
+    end
+    # tweak the bundle config
+    puts("Altering bundle config for taglib")
+    run("bundle config build.taglib-ruby '--with-opt-dir=/app/vendor/taglib-1.8'")
+  end
+
   # default set of binaries to install
   # @return [Array] resulting list
   def binaries
@@ -410,6 +429,9 @@ ERROR
       Dir.mktmpdir("libyaml-") do |tmpdir|
         libyaml_dir = "#{tmpdir}/#{LIBYAML_PATH}"
         install_libyaml(libyaml_dir)
+
+        # install custom binaries
+        install_custom_binaries
 
         # need to setup compile environment for the psych gem
         yaml_include   = File.expand_path("#{libyaml_dir}/include")
